@@ -13,7 +13,7 @@ Test_Django_1/example/back/
 │   ├── requirements.txt               # Зависимости Python
 │   ├── .gitignore                     # Git конфигурация
 │   │
-│   ├── back/                          # Настройки проекта
+│   ├── config/                        # Настройки проекта
 │   │   ├── __init__.py
 │   │   ├── settings.py                # Конфиг БД, приложения
 │   │   ├── urls.py                    # Главные маршруты
@@ -115,13 +115,13 @@ data/
 
 ---
 
-### 🎯 back/ - Django приложение
+### 🎯 Корневая структура example/
 ```
 back/
 ├── manage.py                # Главная команда Django
 ├── requirements.txt         # Зависимости
 ├── .gitignore              # Что игнорировать в Git
-├── back/                    # Конфигурация (settings, urls)
+├── config/                 # Конфигурация (settings, urls)
 ├── bodies/                  # Основное приложение (models, views, templates)
 └── venv/                    # Виртуальное окружение (НЕ КОММИТИТЬ!)
 ```
@@ -177,7 +177,7 @@ python manage.py runserver
 
 ## ✅ Файлы, которые НУЖНО коммитить в Git
 
-- ✅ `back/` (Django конфигурация)
+- ✅ `config/` (Django конфигурация)
 - ✅ `bodies/` (приложение с моделями, views, templates)
 - ✅ `docs/` (документация)
 - ✅ `scripts/` (скрипты)

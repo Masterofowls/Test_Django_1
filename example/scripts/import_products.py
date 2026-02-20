@@ -12,8 +12,12 @@ import django
 from pathlib import Path
 from decimal import Decimal
 
+# Добавляем корень проекта в Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 # Установка Django окружения
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'back.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from bodies.models import Product

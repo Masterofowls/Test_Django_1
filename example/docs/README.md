@@ -81,7 +81,7 @@ back/
 │   ├── products_template.csv     # Пример CSV с товарами
 │   └── products_template.xlsx    # Пример Excel шаблона
 │
-├── back/                          # ⚙️ Конфигурация Django
+├── config/                    # ⚙️ Конфигурация Django
 │   ├── settings.py               # Настройки проекта
 │   ├── urls.py                   # Главные маршруты
 │   ├── asgi.py
