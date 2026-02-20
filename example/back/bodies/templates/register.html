@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .form-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 10px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            width: 100%; 
+            max-width: 400px; 
+        }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            color: #333; 
+            font-size: 24px; 
+        }
+        form { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        label { 
+            margin-top: 15px; 
+            font-weight: bold; 
+            color: #333; 
+            font-size: 14px; 
+        }
+        input { 
+            padding: 10px; 
+            margin-top: 5px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 14px; 
+        }
+        input:focus { 
+            outline: none; 
+            border-color: #667eea; 
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3); 
+        }
+        button { 
+            margin-top: 20px; 
+            padding: 12px; 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold; 
+        }
+        button:hover { 
+            background: #218838; 
+        }
+        .link { 
+            text-align: center; 
+            margin-top: 20px; 
+        }
+        .link a { 
+            color: #667eea; 
+            text-decoration: none; 
+        }
+        .link a:hover { 
+            text-decoration: underline; 
+        }
+        .help-text { 
+            font-size: 12px; 
+            color: #999; 
+            margin-top: 5px; 
+        }
+        ul { 
+            list-style: none; 
+            padding: 0; 
+        }
+        li { 
+            color: #666; 
+            font-size: 12px; 
+            margin: 5px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>✍️ Регистрация</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+        <div class="link">
+            Уже есть аккаунт? <a href="{% url 'login' %}">Войдите</a>
+        </div>
+    </div>
+</body>
+</html>
