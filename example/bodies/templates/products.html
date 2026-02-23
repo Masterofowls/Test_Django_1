@@ -1,144 +1,50 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Каталог товаров</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        
-        header { background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-bottom: 10px; }
-        
-        nav { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        nav a, nav span { text-decoration: none; color: #007bff; font-weight: bold; }
-        nav a:hover { text-decoration: underline; }
-        nav span { color: #666; }
-        
-        .admin-controls { margin-top: 15px; display: flex; gap: 10px; }
-        .btn-admin { background: #dc3545; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; }
-        .btn-admin:hover { background: #c82333; }
-        .btn-users { background: #28a745; color: white; }
-        .btn-users:hover { background: #218838; }
-        
-        .filter-section { background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .filter-section h3 { margin-bottom: 15px; color: #333; }
-        .filter-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-        .filter-form input { padding: 8px; border: 1px solid #ddd; border-radius: 3px; }
-        .filter-form button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; }
-        .filter-form button:hover { background: #0056b3; }
-        .filter-form .btn-clear { background: #6c757d; }
-        .filter-form .btn-clear:hover { background: #5a6268; }
-        
-        .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .product { background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
-        .product-image { width: 100%; height: 200px; object-fit: cover; border-radius: 3px; margin-bottom: 10px; background: #f5f5f5; display: block; }
-        .product h3 { margin-bottom: 10px; color: #333; font-size: 18px; }
-        .product p { color: #666; font-size: 14px; margin: 5px 0; }
-        .price { font-size: 20px; font-weight: bold; color: #28a745; margin: 10px 0; }
-        
-        .btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; border-radius: 3px; text-decoration: none; margin-top: 10px; cursor: pointer; border: none; font-size: 14px; }
-        .btn:hover { background: #0056b3; }
-        
-        .product-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-        .btn-edit { background: #28a745; }
-        .btn-edit:hover { background: #218838; }
-        .btn-delete { background: #dc3545; }
-        .btn-delete:hover { background: #c82333; }
-        
-        .role-badge { display: inline-block; background: #667eea; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-        
-        .empty { text-align: center; padding: 40px; background: white; border-radius: 5px; color: #999; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🛍️ Интернет-магазин</h1>
-            <nav>
-                {% if user.is_authenticated %}
-                    <span>👤 {{ user.username }}</span>
-                    <span class="role-badge">{{ user.profile.get_role_display }}</span>
-                    <a href="{% url 'order_list' %}">📦 Мои заказы</a>
-                    {% if show_edit or show_delete %}
-                        <a href="{% url 'manage_users' %}">👥 Пользователи</a>
-                    {% endif %}
-                    <a href="{% url 'logout' %}">🚪 Выход</a>
-                {% else %}
-                    <span style="color: #999;">Не авторизированы</span>
-                    <a href="{% url 'login' %}">🔓 Вход</a>
-                    <a href="{% url 'register' %}">✍️ Регистрация</a>
-                {% endif %}
-            </nav>
-            
-            {% if show_add_product %}
-                <div class="admin-controls">
-                    <a href="{% url 'add_product' %}" class="btn-admin">➕ Добавить товар</a>
-                </div>
+{% extends "base.html" %}
+{% block title %}Каталог{% endblock %}
+{% block content %}
+<h1>Каталог товаров</h1>
+
+{% if show_add_product %}
+    <p style="margin-bottom:15px"><a href="{% url 'add_product' %}" class="btn">Добавить товар</a></p>
+{% endif %}
+
+{% if user.is_authenticated %}
+<div class="card">
+    <form method="get" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" name="search" placeholder="Поиск..." value="{{ request.GET.search }}" style="width:auto; flex:1;">
+        <input type="number" name="price_min" placeholder="Цена от" value="{{ request.GET.price_min }}" style="width:120px;">
+        <input type="number" name="price_max" placeholder="Цена до" value="{{ request.GET.price_max }}" style="width:120px;">
+        <button class="btn" type="submit">Найти</button>
+        <a href="{% url 'product_list' %}" class="btn" style="background:#6c757d;">Сброс</a>
+    </form>
+</div>
+{% endif %}
+
+{% if products %}
+<div class="grid">
+    {% for product in products %}
+    <div class="card">
+        {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" style="width:100%; height:180px; object-fit:cover; border-radius:3px; margin-bottom:10px;">
+        {% endif %}
+        <h3>{{ product.name }}</h3>
+        <p style="color:#666; font-size:13px;">{{ product.sku }}</p>
+        <p>{{ product.description|truncatewords:15 }}</p>
+        <p style="font-size:20px; font-weight:bold; color:#28a745; margin:10px 0;">{{ product.price }} р.</p>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+            {% if user.is_authenticated and user.profile.is_authorized %}
+                <a href="{% url 'create_order' product.id 1 %}" class="btn">Заказать</a>
             {% endif %}
-        </header>
-
-        {% if user.is_authenticated and user.profile.is_authorized %}
-            <div class="filter-section">
-                <h3>🔍 Фильтр товаров</h3>
-                <form method="get" class="filter-form">
-                    <input type="text" name="search" placeholder="Поиск по названию..." value="{{ request.GET.search }}">
-                    <input type="number" name="price_min" placeholder="Цена от (₽)" value="{{ request.GET.price_min }}" min="0" step="0.01">
-                    <input type="number" name="price_max" placeholder="Цена до (₽)" value="{{ request.GET.price_max }}" min="0" step="0.01">
-                    <button type="submit">🔎 Найти</button>
-                    <a href="{% url 'product_list' %}"><button type="button" class="btn-clear">✖ Сбросить</button></a>
-                </form>
-            </div>
-        {% endif %}
-
-        {% if products %}
-            <div class="products">
-                {% for product in products %}
-                    <div class="product">
-                        {% if product.image %}
-                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
-                        {% else %}
-                            <div class="product-image" style="display: flex; align-items: center; justify-content: center; color: #999;">
-                                📷 Нет изображения
-                            </div>
-                        {% endif %}
-                        <h3>{{ product.name }}</h3>
-                        <p><strong>SKU:</strong> {{ product.sku }}</p>
-                        <p>{{ product.description }}</p>
-                        <div class="price">{{ product.price }} ₽</div>
-                        
-                        <div class="product-actions">
-                            {% if user.is_authenticated and user.profile.is_authorized %}
-                                <a href="{% url 'create_order' product.id 1 %}" class="btn">Заказать</a>
-                            {% elif user.is_authenticated %}
-                                <p style="color: #999; font-size: 12px;">Недоступно для вашей роли</p>
-                            {% else %}
-                                <p style="color: #999; font-size: 12px;">Войдите, чтобы заказать</p>
-                            {% endif %}
-                            
-                            {% if show_edit %}
-                                <a href="{% url 'edit_product' product.id %}" class="btn btn-edit">✏️ Редактировать</a>
-                            {% endif %}
-                            
-                            {% if show_delete %}
-                                <a href="{% url 'delete_product' product.id %}" class="btn btn-delete">🗑️ Удалить</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="empty">
-                <p>📭 Товары не найдены</p>
-                {% if show_add_product %}
-                    <p style="font-size: 12px; margin-top: 10px;"><a href="{% url 'add_product' %}" style="color: #007bff;">Добавьте первый товар</a></p>
-                {% else %}
-                    <p style="font-size: 12px; margin-top: 10px;">Товары добавятся администратором</p>
-                {% endif %}
-            </div>
-        {% endif %}
+            {% if show_edit %}
+                <a href="{% url 'edit_product' product.id %}" class="btn btn-success">Редактировать</a>
+            {% endif %}
+            {% if show_delete %}
+                <a href="{% url 'delete_product' product.id %}" class="btn btn-danger">Удалить</a>
+            {% endif %}
+        </div>
     </div>
-</body>
-</html>
+    {% endfor %}
+</div>
+{% else %}
+<p>Товары не найдены.</p>
+{% endif %}
+{% endblock %}

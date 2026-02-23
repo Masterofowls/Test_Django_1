@@ -1,11 +1,11 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
-from django.views.decorators.http import require_http_methods
-from .models import Product, PickupPoint, Order, Profile
+from django.shortcuts import get_object_or_404, redirect, render
+
 from .forms import SimplifiedUserCreationForm
+from .models import Order, PickupPoint, Product, Profile
+from .models import Order, PickupPoint, Product, Profile
 
 
 def get_user_role(user):
@@ -73,55 +73,27 @@ def register_view(request):
     if request.method == 'POST':
         form = SimplifiedUserCreationForm(request.POST)
         if form.is_valid():
-            try:
-                user = form.save()
-                # Создаем профиль с ролью авторизированного пользователя
-                # Проверяем, не существует ли уже профиль
-                profile, created = Profile.objects.get_or_create(
-                    user=user,
-                    defaults={'role': 'authorized'}
-                )
-                if created:
-                    print(f"✅ Профиль создан для пользователя {user.username}")
-                else:
-                    print(f"✅ Профиль уже существует для пользователя {user.username}")
-                
-                login(request, user)
-                print(f"✅ Пользователь {user.username} успешно зарегистрирован и вошел в систему")
-                return redirect('product_list')
-            except Exception as e:
-                print(f"❌ Ошибка при создании профиля: {e}")
-                form.add_error(None, f"Ошибка при создании профиля: {str(e)}")
-        else:
-            print(f"❌ Ошибки валидации формы: {form.errors}")
+            user = form.save()
+            Profile.objects.get_or_create(user=user, defaults={'role': 'authorized'})
+            login(request, user)
+            return redirect('product_list')
     else:
         form = SimplifiedUserCreationForm()
-    
     return render(request, 'register.html', {'form': form})
 
 
 def login_view(request):
     """Вход в систему"""
     if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
-        
-        print(f"🔐 Попытка входа: пользователь '{username}'")
-        
-        if not username or not password:
-            error = 'Введите имя пользователя и пароль'
-            print(f"❌ {error}")
-            return render(request, 'login.html', {'error': error})
-        
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
+        user = authenticate(
+            request,
+            username=request.POST.get('username', '').strip(),
+            password=request.POST.get('password', '').strip(),
+        )
+        if user:
             login(request, user)
-            print(f"✅ Пользователь {username} успешно вошел в систему")
             return redirect('product_list')
-        else:
-            error = 'Неверный логин или пароль'
-            print(f"❌ {error} для пользователя '{username}'")
-            return render(request, 'login.html', {'error': error})
+        return render(request, 'login.html', {'error': 'Неверный логин или пароль'})
     return render(request, 'login.html')
 
 
@@ -187,7 +159,7 @@ def delete_product(request, product_id):
 def add_product(request):
     """Добавить новый товар"""
     if request.method == 'POST':
-        product = Product.objects.create(
+        Product.objects.create(
             name=request.POST.get('name', ''),
             price=request.POST.get('price', 0),
             description=request.POST.get('description', ''),

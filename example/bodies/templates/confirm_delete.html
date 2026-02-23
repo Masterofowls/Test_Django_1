@@ -1,118 +1,13 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подтвердить удаление</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .message {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 16px;
-        }
-
-        .object-name {
-            background: #f0f0f0;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 20px 0;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 30px;
-        }
-
-        button, a {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #c82333;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
-        }
-
-        .btn-cancel {
-            background: #f0f0f0;
-            color: #666;
-        }
-
-        .btn-cancel:hover {
-            background: #e0e0e0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="icon">⚠️</div>
-        <h1>Подтвердить удаление</h1>
-        <p class="message">Вы уверены, что хотите удалить {{ object_type }}?</p>
-        <div class="object-name">{{ object }}</div>
-        <p style="color: #999; font-size: 14px;">Это действие невозможно отменить.</p>
-
-        <form method="post" style="display: inline-block; width: 100%;">
-            {% csrf_token %}
-            <div class="btn-group">
-                <button type="submit" class="btn-delete">Удалить</button>
-                <a href="{% url 'product_list' %}" class="btn-cancel">Отмена</a>
-            </div>
-        </form>
-    </div>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Удаление{% endblock %}
+{% block content %}
+<div class="card" style="max-width:400px; margin:40px auto; text-align:center;">
+    <h1>Удалить {{ object_type }}?</h1>
+    <p style="margin:15px 0;"><strong>{{ object }}</strong></p>
+    <form method="post" style="display:flex; gap:10px; justify-content:center;">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Удалить</button>
+        <a href="{% url 'product_list' %}" class="btn" style="background:#6c757d;">Отмена</a>
+    </form>
+</div>
+{% endblock %}
