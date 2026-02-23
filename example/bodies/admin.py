@@ -4,9 +4,23 @@ from .models import Product, PickupPoint, Order, Profile
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'sku', 'price')
+    list_display = ('name', 'sku', 'price', 'has_image')
     search_fields = ('name', 'sku')
     list_filter = ('price',)
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'sku', 'price')
+        }),
+        ('Описание и изображение', {
+            'fields': ('description', 'image')
+        }),
+    )
+    
+    def has_image(self, obj):
+        """Показать галочку если есть изображение"""
+        return bool(obj.image)
+    has_image.boolean = True
+    has_image.short_description = '📸 Есть изображение'
 
 
 @admin.register(PickupPoint)

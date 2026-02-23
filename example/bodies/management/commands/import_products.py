@@ -1,58 +1,66 @@
-import openpyxl
+import csv
+from decimal import Decimal
 from django.core.management.base import BaseCommand
 from bodies.models import Product
 
 
 class Command(BaseCommand):
-    """Команда для импорта товаров из Excel файла"""
-    
-    help = 'Импортирует товары из Excel-файла'
+    help = 'Импортирует товары из CSV файла'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            'file_path',
-            type=str,
-            help='Путь к Excel-файлу с товарами'
-        )
+        parser.add_argument('file_path', type=str, help='Путь к CSV-файлу')
+
+    def detect_encoding(self, file_path):
+        for encoding in ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    f.read(1024)
+                return encoding
+            except:
+                continue
+        return 'utf-8'
 
     def handle(self, *args, **options):
         file_path = options['file_path']
         
         try:
-            wb = openpyxl.load_workbook(file_path)
-            ws = wb.active
+            encoding = self.detect_encoding(file_path)
+            imported = 0
             
-            # Получить заголовки из первой строки
-            headers = [cell.value for cell in ws[1]]
-            count = 0
-            
-            # Пройти по каждой строке, начиная со второй
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                data = dict(zip(headers, row))
+            with open(file_path, 'r', encoding=encoding) as f:
+                sample = f.read(1024)
+                f.seek(0)
+                dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
+                reader = csv.DictReader(f, dialect=dialect)
                 
-                if not data.get('Артикул'):
-                    continue
-                
-                # update_or_create - создаст если не существует, обновит если существует
-                Product.objects.update_or_create(
-                    sku=data['Артикул'],
-                    defaults={
-                        'name':        data.get('Наименование товара', ''),
-                        'price':       str(data.get('Цена', 0)).replace(',', '.'),
-                        'description': data.get('Описание товара', '') or '',
-                    }
-                )
-                count += 1
+                for row_num, row in enumerate(reader, start=2):
+                    try:
+                        name = next((row.get(k) for k in ['name', 'Название', 'название', 'Name'] if row.get(k)), None)
+                        sku = next((row.get(k) for k in ['sku', 'Артикул', 'артикул', 'SKU'] if row.get(k)), None)
+                        price = next((row.get(k) for k in ['price', 'Цена', 'цена', 'Price'] if row.get(k)), None)
+                        desc = next((row.get(k) for k in ['description', 'Описание', 'описание', 'Description'] if row.get(k)), None)
+                        
+                        if not all([name, sku, price]):
+                            continue
+                        
+                        name = str(name).strip()
+                        sku = str(sku).strip()
+                        desc = (str(desc).strip() if desc else '')
+                        price = Decimal(str(price).replace(',', '.'))
+                        
+                        Product.objects.update_or_create(
+                            sku=sku,
+                            defaults={'name': name, 'price': price, 'description': desc}
+                        )
+                        imported += 1
+                        self.stdout.write(f'✓ {name} ({sku})')
+                        
+                    except:
+                        continue
             
-            self.stdout.write(
-                self.style.SUCCESS(f'✅ Успешно импортировано {count} товаров')
-            )
+            self.stdout.write(self.style.SUCCESS(f'\n✅ Импортировано: {imported} товаров'))
             
         except FileNotFoundError:
-            self.stdout.write(
-                self.style.ERROR(f'❌ Файл не найден: {file_path}')
-            )
+            self.stdout.write(self.style.ERROR(f'❌ Файл не найден: {file_path}'))
         except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f'❌ Ошибка при импорте: {str(e)}')
-            )
+            self.stdout.write(self.style.ERROR(f'❌ Ошибка: {str(e)}'))

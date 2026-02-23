@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Скрипт для импорта товаров из CSV и XLSX файлов
-Поддерживает кодировку UTF-8 и CP1251 (Windows-1251)
-"""
+"""Импорт товаров из CSV файла с изображениями"""
 
 import os
 import sys
@@ -11,12 +8,11 @@ import csv
 import django
 from pathlib import Path
 from decimal import Decimal
+from django.core.files.base import ContentFile
 
-# Добавляем корень проекта в Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Установка Django окружения
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
@@ -25,246 +21,155 @@ from bodies.models import Product
 
 def detect_encoding(file_path):
     """Определить кодировку файла"""
-    encodings = ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1', 'iso-8859-5']
-    
-    for encoding in encodings:
+    for encoding in ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']:
         try:
             with open(file_path, 'r', encoding=encoding) as f:
-                f.read()
-            print(f"✓ Обнаружена кодировка: {encoding}")
+                f.read(1024)
             return encoding
-        except (UnicodeDecodeError, UnicodeError):
+        except:
             continue
-    
-    print("✗ Не удалось определить кодировку файла")
-    return None
+    return 'utf-8'
 
 
-def import_from_csv(file_path):
-    """Импортировать товары из CSV файла"""
+def import_csv(file_path):
+    """Импортировать товары из CSV файла с изображениями"""
     encoding = detect_encoding(file_path)
-    if not encoding:
-        return 0
-    
-    imported_count = 0
+    imported = 0
     errors = []
     
-    try:
-        with open(file_path, 'r', encoding=encoding) as csvfile:
-            # Пытаемся определить разделитель
-            sample = csvfile.read(1024)
-            csvfile.seek(0)
-            
-            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
-            reader = csv.DictReader(csvfile, dialect=dialect)
-            
-            # Нормализуем названия столбцов
-            if reader.fieldnames:
-                print(f"\n📋 Найдены столбцы: {', '.join(reader.fieldnames)}")
-            
-            for row_num, row in enumerate(reader, start=2):
-                try:
-                    # Ищем столбцы с разными возможными названиями
-                    name = row.get('name') or row.get('Название') or row.get('название') or row.get('Name')
-                    sku = row.get('sku') or row.get('Артикул') or row.get('артикул') or row.get('SKU')
-                    price = row.get('price') or row.get('Цена') or row.get('цена') or row.get('Price')
-                    description = row.get('description') or row.get('Описание') or row.get('описание') or row.get('Description')
-                    
-                    # Валидация
-                    if not name or not sku or not price:
-                        errors.append(f"Строка {row_num}: Отсутствуют обязательные поля (название, артикул, цена)")
-                        continue
-                    
-                    # Очистка данных
-                    name = str(name).strip()
-                    sku = str(sku).strip()
-                    description = (str(description) if description else '').strip()
-                    
-                    # Преобразование цены
-                    try:
-                        price = Decimal(str(price).replace(',', '.'))
-                    except:
-                        errors.append(f"Строка {row_num}: Некорректная цена: {price}")
-                        continue
-                    
-                    # Проверка дубликатов
-                    if Product.objects.filter(sku=sku).exists():
-                        existing = Product.objects.get(sku=sku)
-                        existing.name = name
-                        existing.price = price
-                        existing.description = description
-                        existing.save()
-                        print(f"  ♻️  Обновлен товар: {name} ({sku})")
-                    else:
-                        Product.objects.create(
-                            name=name,
-                            sku=sku,
-                            price=price,
-                            description=description
-                        )
-                        print(f"  ✓ Добавлен товар: {name} ({sku}) - {price} ₽")
-                    
-                    imported_count += 1
-                    
-                except Exception as e:
-                    errors.append(f"Строка {row_num}: {str(e)}")
-                    continue
+    with open(file_path, 'r', encoding=encoding) as f:
+        sample = f.read(1024)
+        f.seek(0)
+        dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
+        reader = csv.DictReader(f, dialect=dialect)
         
-        return imported_count, errors
-        
-    except Exception as e:
-        print(f"✗ Ошибка при чтении CSV файла: {str(e)}")
-        return 0, [str(e)]
-
-
-def import_from_xlsx(file_path):
-    """Импортировать товары из XLSX файла"""
-    try:
-        import openpyxl
-    except ImportError:
-        print("✗ Модуль openpyxl не установлен. Установите: pip install openpyxl")
-        return 0, []
-    
-    imported_count = 0
-    errors = []
-    
-    try:
-        workbook = openpyxl.load_workbook(file_path)
-        worksheet = workbook.active
-        
-        # Получаем заголовки
-        headers = {}
-        for col_num, cell in enumerate(worksheet[1], start=1):
-            headers[col_num] = str(cell.value).strip() if cell.value else ''
-        
-        print(f"\n📋 Найдены столбцы: {', '.join(str(v) for v in headers.values() if v)}")
-        
-        # Ищем нужные столбцы
-        name_col = None
-        sku_col = None
-        price_col = None
-        desc_col = None
-        
-        for col_num, header in headers.items():
-            header_lower = header.lower()
-            if 'назв' in header_lower or 'name' in header_lower:
-                name_col = col_num
-            elif 'артикул' in header_lower or 'sku' in header_lower:
-                sku_col = col_num
-            elif 'цена' in header_lower or 'price' in header_lower:
-                price_col = col_num
-            elif 'описа' in header_lower or 'description' in header_lower:
-                desc_col = col_num
-        
-        if not (name_col and sku_col and price_col):
-            errors.append("Не найдены необходимые столбцы (Название, Артикул, Цена)")
-            return 0, errors
-        
-        # Импорт данных
-        for row_num, row in enumerate(worksheet.iter_rows(min_row=2), start=2):
+        for row_num, row in enumerate(reader, start=2):
             try:
-                name = str(row[name_col - 1].value).strip() if row[name_col - 1].value else ''
-                sku = str(row[sku_col - 1].value).strip() if row[sku_col - 1].value else ''
-                price = row[price_col - 1].value
-                description = str(row[desc_col - 1].value).strip() if desc_col and row[desc_col - 1].value else ''
+                # Ищем столбцы
+                name = next((row.get(k) for k in ['name', 'Название', 'название', 'Name'] if row.get(k)), None)
+                sku = next((row.get(k) for k in ['sku', 'Артикул', 'артикул', 'SKU'] if row.get(k)), None)
+                price = next((row.get(k) for k in ['price', 'Цена', 'цена', 'Price'] if row.get(k)), None)
+                desc = next((row.get(k) for k in ['description', 'Описание', 'описание', 'Description'] if row.get(k)), None)
+                image_path = next((row.get(k) for k in ['image', 'Изображение', 'изображение', 'Image', 'image_path', 'путь_изображения'] if row.get(k)), None)
                 
-                # Валидация
-                if not name or not sku or price is None:
-                    errors.append(f"Строка {row_num}: Отсутствуют обязательные поля")
+                if not all([name, sku, price]):
+                    errors.append(f"Строка {row_num}: недостаточно данных")
                     continue
                 
-                # Преобразование цены
+                name = str(name).strip()
+                sku = str(sku).strip()
+                desc = (str(desc).strip() if desc else '')
+                image_path = (str(image_path).strip() if image_path else None)
+                
                 try:
                     price = Decimal(str(price).replace(',', '.'))
                 except:
-                    errors.append(f"Строка {row_num}: Некорректная цена: {price}")
+                    errors.append(f"Строка {row_num}: неверная цена")
                     continue
                 
-                # Проверка дубликатов
-                if Product.objects.filter(sku=sku).exists():
-                    existing = Product.objects.get(sku=sku)
-                    existing.name = name
-                    existing.price = price
-                    existing.description = description
-                    existing.save()
-                    print(f"  ♻️  Обновлен товар: {name} ({sku})")
-                else:
-                    Product.objects.create(
-                        name=name,
-                        sku=sku,
-                        price=price,
-                        description=description
-                    )
-                    print(f"  ✓ Добавлен товар: {name} ({sku}) - {price} ₽")
+                # Подготовка данных для создания/обновления
+                product_data = {
+                    'name': name,
+                    'price': price,
+                    'description': desc
+                }
                 
-                imported_count += 1
+                # Обработка изображения если указано
+                if image_path:
+                    product_data['image'] = load_image_file(image_path, sku, row_num, errors)
+                
+                # Create or update
+                product, created = Product.objects.update_or_create(
+                    sku=sku,
+                    defaults=product_data
+                )
+                
+                status = "✓ Добавлен" if created else "♻️  Обновлен"
+                img_status = " + 📸" if image_path else ""
+                print(f"{status}{img_status}: {name} ({sku}) - {price} ₽")
+                imported += 1
                 
             except Exception as e:
                 errors.append(f"Строка {row_num}: {str(e)}")
-                continue
-        
-        workbook.close()
-        return imported_count, errors
-        
+    
+    return imported, errors
+
+
+def load_image_file(image_path, sku, row_num, errors):
+    """
+    Загрузить файл изображения из пути (может быть абсолютный или относительный путь)
+    
+    Args:
+        image_path: Путь к файлу изображения (абсолютный или относительный к data/)
+        sku: SKU товара (для логирования)
+        row_num: Номер строки в CSV (для логирования)
+        errors: Список ошибок для добавления сообщений
+    
+    Returns:
+        ImageFieldFile или None
+    """
+    if not image_path:
+        return None
+    
+    # Проверить несколько возможных путей
+    possible_paths = [
+        Path(image_path),  # Абсолютный путь или путь от текущей директории
+        Path('data') / image_path,  # Относительно папки data
+        project_root / 'data' / image_path,  # Полный путь к папке data
+        project_root / image_path,  # От корня проекта
+    ]
+    
+    image_file = None
+    for path in possible_paths:
+        if path.exists() and path.is_file():
+            image_file = path
+            break
+    
+    if not image_file:
+        errors.append(f"Строка {row_num} ({sku}): файл изображения не найден: {image_path}")
+        return None
+    
+    # Проверить что это изображение
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    if image_file.suffix.lower() not in valid_extensions:
+        errors.append(f"Строка {row_num} ({sku}): неподдерживаемый формат изображения: {image_file.suffix}")
+        return None
+    
+    # Читаем файл и возвращаем
+    try:
+        with open(image_file, 'rb') as f:
+            file_content = f.read()
+        return ContentFile(file_content, name=image_file.name)
     except Exception as e:
-        errors.append(f"Ошибка при чтении XLSX: {str(e)}")
-        return 0, errors
-
-
-def main():
-    """Главная функция"""
-    print("=" * 60)
-    print("📦 Импортер товаров из CSV и XLSX файлов")
-    print("=" * 60)
-    
-    # Получаем путь к файлу
-    if len(sys.argv) < 2:
-        print("\nИспользование: python import_products.py <путь_к_файлу>")
-        print("\nПримеры:")
-        print("  python import_products.py products.csv")
-        print("  python import_products.py products.xlsx")
-        print("  python import_products.py D:/files/products.csv")
-        return
-    
-    file_path = sys.argv[1]
-    
-    # Проверяем существование файла
-    if not os.path.exists(file_path):
-        print(f"✗ Файл не найден: {file_path}")
-        return
-    
-    file_ext = Path(file_path).suffix.lower()
-    
-    print(f"\n📂 Файл: {file_path}")
-    print(f"📄 Расширение: {file_ext}")
-    
-    imported_count = 0
-    errors = []
-    
-    if file_ext == '.csv':
-        print("\n🔄 Импорт из CSV...")
-        imported_count, errors = import_from_csv(file_path)
-    elif file_ext in ['.xlsx', '.xls']:
-        print("\n🔄 Импорт из XLSX...")
-        imported_count, errors = import_from_xlsx(file_path)
-    else:
-        print(f"✗ Неподдерживаемый формат: {file_ext}")
-        print("Поддерживаемые форматы: .csv, .xlsx, .xls")
-        return
-    
-    # Результаты
-    print("\n" + "=" * 60)
-    print(f"✅ Успешно импортировано: {imported_count} товаров")
-    
-    if errors:
-        print(f"\n⚠️  Ошибок: {len(errors)}")
-        for error in errors[:10]:  # Показываем первые 10 ошибок
-            print(f"  • {error}")
-        if len(errors) > 10:
-            print(f"  ... и еще {len(errors) - 10} ошибок")
-    
-    print("=" * 60)
+        errors.append(f"Строка {row_num} ({sku}): ошибка при чтении изображения: {str(e)}")
+        return None
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) < 2:
+        print("Использование: python import_products.py <файл.csv>")
+        sys.exit(1)
+    
+    file_path = sys.argv[1]
+    
+    if not os.path.exists(file_path):
+        print(f"Ошибка: файл не найден: {file_path}")
+        sys.exit(1)
+    
+    if not file_path.lower().endswith('.csv'):
+        print("Ошибка: поддерживается только CSV формат")
+        sys.exit(1)
+    
+    print(f"📂 Импортирование: {file_path}")
+    print("-" * 40)
+    
+    imported, errors = import_csv(file_path)
+    
+    print("-" * 40)
+    print(f"✅ Импортировано: {imported} товаров")
+    if errors:
+        print(f"\n⚠️  Ошибок: {len(errors)}")
+        for error in errors[:10]:
+            print(f"  • {error}")
+        if len(errors) > 10:
+            print(f"  ... и еще {len(errors) - 10} ошибок")
